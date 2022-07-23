@@ -25,8 +25,8 @@ func main() {
 	r := gin.Default()
 
 	// Get todos
-	r.GET("/todos", func (c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
+	r.GET("/todos", func (ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Get todos success",
 			"status": http.StatusOK,
 			"todos": todos,
@@ -34,8 +34,8 @@ func main() {
 	})
 	
 	// Get todo by id
-	r.GET("/todos/:id", func(c *gin.Context) {
-		id := c.Param("id") 
+	r.GET("/todos/:id", func(ctx *gin.Context) {
+		id := ctx.Param("id") 
 		intId, err := strconv.Atoi(id)
 
 		if (err != nil) {
@@ -43,7 +43,7 @@ func main() {
 		}
 
 		if (intId < 0 || intId > len(todos) - 1) {
-			c.JSON(http.StatusNotFound, gin.H{
+			ctx.JSON(http.StatusNotFound, gin.H{
 				"error": fmt.Sprintf("Todo %s not found", id),
 				"message": fmt.Sprintf("Get todo %s failed", id),
 				"status": http.StatusNotFound,
@@ -53,7 +53,7 @@ func main() {
 			return 
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		ctx.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Get todo %s success", id),
 			"status": http.StatusOK,
 			"todo": todos[intId],
@@ -61,20 +61,58 @@ func main() {
 	})
 
 	// Add todo
-	r.POST("/todos", func(c *gin.Context) {
+	r.POST("/todos", func(ctx *gin.Context) {
 		var newTodo todo
 
-		if err := c.BindJSON(&newTodo); err != nil {
+		if err := ctx.BindJSON(&newTodo); err != nil {
 			return
 		}
 
 		todos = append(todos, newTodo)
 
-		c.JSON(http.StatusOK, gin.H{
+		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Add todo success",
 			"newTodo": newTodo,
 			"status": http.StatusOK,
 			"todos": todos,
+		})
+	})
+
+	// Update todo by id
+	r.PATCH("/todos/:id", func(ctx *gin.Context) {
+		var updatedTodo todo
+
+		id := ctx.Param("id")
+		intId, err := strconv.Atoi(id)
+
+		if (err != nil) {
+			return 
+		}
+
+		if (intId < 0 || intId > len(todos) - 1) {
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error": fmt.Sprintf("Todo %s not found", id),
+				"message": fmt.Sprintf("Update todo %s failed", id),
+				"status": http.StatusNotFound,
+				"todos": nil,
+				"updated_todo": nil,
+			})
+
+			return 
+		}
+
+		if err := ctx.BindJSON(&updatedTodo); err != nil {
+			return
+		}
+
+		todos[intId] = updatedTodo
+		todos[intId].Id = uint(intId)
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": fmt.Sprintf("Update todo %s success", id),
+			"status": http.StatusOK,
+			"todos": todos,
+			"updated_todo": todos[intId],
 		})
 	})
 

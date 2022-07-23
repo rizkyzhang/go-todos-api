@@ -27,8 +27,8 @@ func main() {
 	// Get todos
 	r.GET("/todos", func (c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": http.StatusOK,
 			"message": "Get todos success",
+			"status": http.StatusOK,
 			"todos": todos,
 		})
 	})
@@ -44,9 +44,9 @@ func main() {
 
 		if (intId < 0 || intId > len(todos) - 1) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"status": http.StatusNotFound,
-				"message": fmt.Sprintf("Get todo %s failed", id),
 				"error": fmt.Sprintf("Todo %s not found", id),
+				"message": fmt.Sprintf("Get todo %s failed", id),
+				"status": http.StatusNotFound,
 				"todo": nil,
 			})
 
@@ -54,9 +54,27 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"status": http.StatusOK,
 			"message": fmt.Sprintf("Get todo %s success", id),
+			"status": http.StatusOK,
 			"todo": todos[intId],
+		})
+	})
+
+	// Add todo
+	r.POST("/todos", func(c *gin.Context) {
+		var newTodo todo
+
+		if err := c.BindJSON(&newTodo); err != nil {
+			return
+		}
+
+		todos = append(todos, newTodo)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Add todo success",
+			"newTodo": newTodo,
+			"status": http.StatusOK,
+			"todos": todos,
 		})
 	})
 

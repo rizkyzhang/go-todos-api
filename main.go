@@ -116,5 +116,34 @@ func main() {
 		})
 	})
 
+	// Delete todo by id
+	r.DELETE("/todos/:id", func(ctx *gin.Context) {
+		var updatedTodos []todo
+
+		id := ctx.Param("id")
+		intId, err := strconv.Atoi(id)
+
+		if (err != nil) {
+			return
+		}
+
+		deletedTodo := todos[intId]
+
+		for i, todo := range todos {
+			if i != intId {
+				updatedTodos = append(updatedTodos, todo)
+			}
+		}
+
+		todos = updatedTodos
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"deleted_todo": deletedTodo,
+			"message": fmt.Sprintf("Delete todo %s success", id),
+			"status": http.StatusOK,
+			"todos": updatedTodos,
+		})
+	})
+
 	r.Run()
 }

@@ -65,14 +65,24 @@ func main() {
 		var newTodo todo
 
 		if err := ctx.BindJSON(&newTodo); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": "JSON Payload is not valid",
+				"message": "Add todo failed",
+				"new_todo": nil,
+				"status": http.StatusBadRequest,
+				"todos": nil,
+			})
+
 			return
 		}
 
+		newTodo.Id = uint(len(todos) - 1) + 1
+		newTodo.IsCompleted = false
 		todos = append(todos, newTodo)
 
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Add todo success",
-			"newTodo": newTodo,
+			"new_todo": newTodo,
 			"status": http.StatusOK,
 			"todos": todos,
 		})
@@ -102,6 +112,14 @@ func main() {
 		}
 
 		if err := ctx.BindJSON(&updatedTodo); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": "JSON Payload is not valid",
+				"message": fmt.Sprintf("Update todo %s failed", id),
+				"status": http.StatusBadRequest,
+				"todos": nil,
+				"updated_todo": nil,
+			})
+
 			return
 		}
 
@@ -125,6 +143,18 @@ func main() {
 
 		if (err != nil) {
 			return
+		}
+
+		if (intId < 0 || intId > len(todos) - 1) {
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error": fmt.Sprintf("Todo %s not found", id),
+				"message": fmt.Sprintf("Delete todo %s failed", id),
+				"status": http.StatusNotFound,
+				"todos": nil,
+				"deleted_todo": nil,
+			})
+
+			return 
 		}
 
 		deletedTodo := todos[intId]

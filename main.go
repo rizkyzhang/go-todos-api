@@ -1,21 +1,46 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 
-	"fmt"
-
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
 )
 
 type todo struct {
 	Id uint `json:"id"`
-	Todo string `json:"todo"`
+	Todo string `json:"todo" binding:"required"`
 	IsCompleted bool `json:"is_completed"`
 }
 
 func main() {
+	const (
+		host = "localhost"
+		port = 5432
+		user = "postgres"
+		password = "root"
+		dbname = "postgres"
+	)
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = db.Ping()
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer db.Close()
+
 	todos := []todo{
 		{Id: 0, Todo: "Test", IsCompleted: false},
 		{Id: 1, Todo: "Push commit to github", IsCompleted: false},
@@ -26,6 +51,35 @@ func main() {
 
 	// Get todos
 	r.GET("/todos", func (ctx *gin.Context) {
+		var todos []todo
+
+		sqlStatement := `SELECT * FROM todos`
+		rows, err := db.Query(sqlStatement)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		defer rows.Close()
+
+		for rows.Next() {
+			var todo todo
+
+			err = rows.Scan(&todo.Id, &todo.IsCompleted, &todo.Todo)
+
+			if (err != nil) {
+				panic(err)
+			}
+
+			todos = append(todos, todo)
+		}
+
+		err = rows.Err()
+
+		if err != nil {
+			panic(err)
+		}
+
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Get todos success",
 			"status": http.StatusOK,

@@ -89,14 +89,24 @@ func main() {
 	
 	// Get todo by id
 	r.GET("/todos/:id", func(ctx *gin.Context) {
+		var todo todo
+
 		id := ctx.Param("id") 
 		intId, err := strconv.Atoi(id)
 
+		rowCount := 0
+
 		if (err != nil) {
-			return 
+			panic(err) 
 		}
 
-		if (intId < 0 || intId > len(todos) - 1) {
+		err = db.QueryRow(`Select COUNT(*) as count FROM todos;`).Scan(&rowCount)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		if (intId < 1 || intId > rowCount) {
 			ctx.JSON(http.StatusNotFound, gin.H{
 				"error": fmt.Sprintf("Todo %s not found", id),
 				"message": fmt.Sprintf("Get todo %s failed", id),
@@ -107,10 +117,16 @@ func main() {
 			return 
 		}
 
+		err = db.QueryRow(`SELECT * FROM todos WHERE id = $1;`, intId).Scan(&todo.Id, &todo.IsCompleted, &todo.Todo)
+
+		if (err != nil) {
+			panic(err) 
+		}
+
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Get todo %s success", id),
 			"status": http.StatusOK,
-			"todo": todos[intId],
+			"todo": todo,
 		})
 	})
 

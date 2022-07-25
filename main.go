@@ -16,6 +16,39 @@ type todo struct {
 	IsCompleted bool `json:"is_completed"`
 }
 
+func getTodosDB(db *sql.DB) ([]todo) {
+	var todos []todo
+
+	sqlStatement := `SELECT * FROM todos`
+	rows, err := db.Query(sqlStatement)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var todo todo
+
+		err = rows.Scan(&todo.Id, &todo.IsCompleted, &todo.Todo)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		todos = append(todos, todo)
+	}
+
+	err = rows.Err()
+
+	if err != nil {
+		panic(err)
+	}
+
+	return todos
+}
+
 func main() {
 	const (
 		host = "localhost"
@@ -51,34 +84,7 @@ func main() {
 
 	// Get todos
 	r.GET("/todos", func (ctx *gin.Context) {
-		var todos []todo
-
-		sqlStatement := `SELECT * FROM todos`
-		rows, err := db.Query(sqlStatement)
-
-		if (err != nil) {
-			panic(err)
-		}
-
-		defer rows.Close()
-
-		for rows.Next() {
-			var todo todo
-
-			err = rows.Scan(&todo.Id, &todo.IsCompleted, &todo.Todo)
-
-			if (err != nil) {
-				panic(err)
-			}
-
-			todos = append(todos, todo)
-		}
-
-		err = rows.Err()
-
-		if err != nil {
-			panic(err)
-		}
+		todos := getTodosDB(db)
 
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Get todos success",
@@ -132,9 +138,10 @@ func main() {
 
 	// Add todo
 	r.POST("/todos", func(ctx *gin.Context) {
+		var reqBody todo
 		var newTodo todo
 
-		if err := ctx.BindJSON(&newTodo); err != nil {
+		if err := ctx.BindJSON(&reqBody); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": "JSON Payload is not valid",
 				"message": "Add todo failed",
@@ -146,9 +153,18 @@ func main() {
 			return
 		}
 
-		newTodo.Id = uint(len(todos) - 1) + 1
-		newTodo.IsCompleted = false
-		todos = append(todos, newTodo)
+		sqlStatement := `
+		INSERT INTO todos (todo)
+		VALUES ($1)
+		RETURNING id, is_completed, todo;
+		`
+		err = db.QueryRow(sqlStatement, reqBody.Todo).Scan(&newTodo.Id, &newTodo.IsCompleted, &newTodo.Todo)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		todos := getTodosDB(db)
 
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Add todo success",

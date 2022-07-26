@@ -12,8 +12,8 @@ import (
 
 type todo struct {
 	Id uint `json:"id"`
-	Todo string `json:"todo" binding:"required"`
-	IsCompleted bool `json:"is_completed"`
+	Todo *string `json:"todo,omitempty"`
+	IsCompleted *bool `json:"is_completed,omitempty"`
 }
 
 func getTodosDB(db *sql.DB) ([]todo) {
@@ -74,11 +74,6 @@ func main() {
 
 	defer db.Close()
 
-	todos := []todo{
-		{Id: 0, Todo: "Test", IsCompleted: false},
-		{Id: 1, Todo: "Push commit to github", IsCompleted: false},
-		{Id: 2, Todo: "Clean code", IsCompleted: false},
-	}
 
 	r := gin.Default()
 
@@ -176,6 +171,8 @@ func main() {
 
 	// Update todo by id
 	r.PATCH("/todos/:id", func(ctx *gin.Context) {
+		var reqBody todo
+		var currentTodo todo
 		var updatedTodo todo
 
 		id := ctx.Param("id")
@@ -185,7 +182,14 @@ func main() {
 			return 
 		}
 
-		if (intId < 0 || intId > len(todos) - 1) {
+		rowCount := 0
+		err = db.QueryRow(`Select COUNT(*) as count FROM todos;`).Scan(&rowCount)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		if (intId < 0 || intId > rowCount) {
 			ctx.JSON(http.StatusNotFound, gin.H{
 				"error": fmt.Sprintf("Todo %s not found", id),
 				"message": fmt.Sprintf("Update todo %s failed", id),
@@ -197,7 +201,7 @@ func main() {
 			return 
 		}
 
-		if err := ctx.BindJSON(&updatedTodo); err != nil {
+		if err := ctx.BindJSON(&reqBody); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": "JSON Payload is not valid",
 				"message": fmt.Sprintf("Update todo %s failed", id),
@@ -205,61 +209,99 @@ func main() {
 				"todos": nil,
 				"updated_todo": nil,
 			})
-
+		
 			return
 		}
 
-		todos[intId] = updatedTodo
-		todos[intId].Id = uint(intId)
+		if (reqBody.IsCompleted == nil && reqBody.Todo == nil) {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": "Either is_completed or todo must be specified",
+				"message": fmt.Sprintf("Update todo %s failed", id),
+				"status": http.StatusBadRequest,
+				"todos": nil,
+				"updated_todo": nil,
+			})
+		
+			return
+		}
+
+		sqlStatement := `SELECT * FROM todos WHERE id = $1`
+		err = db.QueryRow(sqlStatement, intId).Scan(&currentTodo.Id, &currentTodo.IsCompleted, &currentTodo.Todo)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		if (reqBody.IsCompleted == nil) {
+			reqBody.IsCompleted = currentTodo.IsCompleted
+		} 
+
+		if (reqBody.Todo == nil) {
+			reqBody.Todo = currentTodo.Todo
+		}
+
+		sqlStatement = `
+		UPDATE todos
+		SET is_completed = $2, todo = $3
+		WHERE id = $1
+		RETURNING id, is_completed, todo;
+		`
+		err = db.QueryRow(sqlStatement, intId, reqBody.IsCompleted, reqBody.Todo).Scan(&updatedTodo.Id, &updatedTodo.IsCompleted, &updatedTodo.Todo)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		todos := getTodosDB(db)
 
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Update todo %s success", id),
 			"status": http.StatusOK,
 			"todos": todos,
-			"updated_todo": todos[intId],
+			"updated_todo": updatedTodo,
 		})
 	})
 
 	// Delete todo by id
-	r.DELETE("/todos/:id", func(ctx *gin.Context) {
-		var updatedTodos []todo
+	// r.DELETE("/todos/:id", func(ctx *gin.Context) {
+	// 	var updatedTodos []todo
 
-		id := ctx.Param("id")
-		intId, err := strconv.Atoi(id)
+	// 	id := ctx.Param("id")
+	// 	intId, err := strconv.Atoi(id)
 
-		if (err != nil) {
-			return
-		}
+	// 	if (err != nil) {
+	// 		return
+	// 	}
 
-		if (intId < 0 || intId > len(todos) - 1) {
-			ctx.JSON(http.StatusNotFound, gin.H{
-				"error": fmt.Sprintf("Todo %s not found", id),
-				"message": fmt.Sprintf("Delete todo %s failed", id),
-				"status": http.StatusNotFound,
-				"todos": nil,
-				"deleted_todo": nil,
-			})
+	// 	if (intId < 0 || intId > len(todos) - 1) {
+	// 		ctx.JSON(http.StatusNotFound, gin.H{
+	// 			"error": fmt.Sprintf("Todo %s not found", id),
+	// 			"message": fmt.Sprintf("Delete todo %s failed", id),
+	// 			"status": http.StatusNotFound,
+	// 			"todos": nil,
+	// 			"deleted_todo": nil,
+	// 		})
 
-			return 
-		}
+	// 		return 
+	// 	}
 
-		deletedTodo := todos[intId]
+	// 	deletedTodo := todos[intId]
 
-		for i, todo := range todos {
-			if i != intId {
-				updatedTodos = append(updatedTodos, todo)
-			}
-		}
+	// 	for i, todo := range todos {
+	// 		if i != intId {
+	// 			updatedTodos = append(updatedTodos, todo)
+	// 		}
+	// 	}
 
-		todos = updatedTodos
+	// 	todos = updatedTodos
 
-		ctx.JSON(http.StatusOK, gin.H{
-			"deleted_todo": deletedTodo,
-			"message": fmt.Sprintf("Delete todo %s success", id),
-			"status": http.StatusOK,
-			"todos": updatedTodos,
-		})
-	})
+	// 	ctx.JSON(http.StatusOK, gin.H{
+	// 		"deleted_todo": deletedTodo,
+	// 		"message": fmt.Sprintf("Delete todo %s success", id),
+	// 		"status": http.StatusOK,
+	// 		"todos": updatedTodos,
+	// 	})
+	// })
 
 	r.Run()
 }

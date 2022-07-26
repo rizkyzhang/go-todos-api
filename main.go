@@ -263,45 +263,56 @@ func main() {
 	})
 
 	// Delete todo by id
-	// r.DELETE("/todos/:id", func(ctx *gin.Context) {
-	// 	var updatedTodos []todo
+	r.DELETE("/todos/:id", func(ctx *gin.Context) {
+		var deletedTodo todo
 
-	// 	id := ctx.Param("id")
-	// 	intId, err := strconv.Atoi(id)
+		id := ctx.Param("id")
+		intId, err := strconv.Atoi(id)
 
-	// 	if (err != nil) {
-	// 		return
-	// 	}
+		if (err != nil) {
+			return
+		}
 
-	// 	if (intId < 0 || intId > len(todos) - 1) {
-	// 		ctx.JSON(http.StatusNotFound, gin.H{
-	// 			"error": fmt.Sprintf("Todo %s not found", id),
-	// 			"message": fmt.Sprintf("Delete todo %s failed", id),
-	// 			"status": http.StatusNotFound,
-	// 			"todos": nil,
-	// 			"deleted_todo": nil,
-	// 		})
+		rowCount := 0
+		sqlStatement := `SELECT COUNT(*) as count FROM todos;`
 
-	// 		return 
-	// 	}
+		err = db.QueryRow(sqlStatement).Scan(&rowCount)
 
-	// 	deletedTodo := todos[intId]
+		if (err != nil) {
+			panic(err)
+		}
 
-	// 	for i, todo := range todos {
-	// 		if i != intId {
-	// 			updatedTodos = append(updatedTodos, todo)
-	// 		}
-	// 	}
+		if (intId < 1 || intId > rowCount) {
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error": fmt.Sprintf("Todo %s not found", id),
+				"message": fmt.Sprintf("Delete todo %s failed", id),
+				"status": http.StatusNotFound,
+				"todos": nil,
+				"deleted_todo": nil,
+			})
 
-	// 	todos = updatedTodos
+			return 
+		}
 
-	// 	ctx.JSON(http.StatusOK, gin.H{
-	// 		"deleted_todo": deletedTodo,
-	// 		"message": fmt.Sprintf("Delete todo %s success", id),
-	// 		"status": http.StatusOK,
-	// 		"todos": updatedTodos,
-	// 	})
-	// })
+		sqlStatement = `
+		DELETE FROM todos WHERE id = $1
+		RETURNING id, is_completed, todo;
+		`
+		err = db.QueryRow(sqlStatement, intId).Scan(&deletedTodo.Id, &deletedTodo.IsCompleted, &deletedTodo.Todo)
+
+		if (err != nil) {
+			panic(err)
+		}
+
+		todos := getTodosDB(db)
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"deleted_todo": deletedTodo,
+			"message": fmt.Sprintf("Delete todo %s success", id),
+			"status": http.StatusOK,
+			"todos": todos,
+		})
+	})
 
 	r.Run()
 }

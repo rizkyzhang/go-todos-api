@@ -13,6 +13,7 @@ import (
 func (h* Handler) DeleteTodoById(ctx *gin.Context) {
 		var deletedTodo models.Todo
 
+		// Get id param and convert it to int
 		id := ctx.Param("id")
 		intId, err := strconv.Atoi(id)
 
@@ -20,6 +21,7 @@ func (h* Handler) DeleteTodoById(ctx *gin.Context) {
 			return
 		}
 
+		// Validate id param
 		rowCount := 0
 		sqlStatement := `SELECT COUNT(*) as count FROM todos;`
 
@@ -41,6 +43,7 @@ func (h* Handler) DeleteTodoById(ctx *gin.Context) {
 			return 
 		}
 
+		// Delete todo
 		sqlStatement = `
 		DELETE FROM todos WHERE id = $1
 		RETURNING id, is_completed, todo;
@@ -51,6 +54,7 @@ func (h* Handler) DeleteTodoById(ctx *gin.Context) {
 			panic(err)
 		}
 
+		// Get todos
 		todos := utils.GetTodosDB(h.db)
 
 		ctx.JSON(http.StatusOK, gin.H{

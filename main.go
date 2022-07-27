@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	// Database credentials
 	const (
 		host = "localhost"
 		port = 5432
@@ -21,7 +22,7 @@ func main() {
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
-	// Validate database
+	// Validate database credentials
 	db, err := sql.Open("postgres", psqlInfo)
 
 	if err != nil {
@@ -35,6 +36,7 @@ func main() {
 		panic(err)
 	}
 
+	// Init gin and handlers
 	r := gin.Default()
 	handlers := handlers.InitDB(db) 
 

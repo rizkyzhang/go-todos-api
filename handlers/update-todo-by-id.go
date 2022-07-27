@@ -11,10 +11,11 @@ import (
 )
 
 func (h *Handler) UpdateTodoById (ctx *gin.Context) {
-	var reqBody models.Todo
+		var reqBody models.Todo
 		var currentTodo models.Todo
 		var updatedTodo models.Todo
 
+		// Get id param and convert it to int
 		id := ctx.Param("id")
 		intId, err := strconv.Atoi(id)
 
@@ -22,6 +23,7 @@ func (h *Handler) UpdateTodoById (ctx *gin.Context) {
 			return 
 		}
 
+		// Validate id param
 		rowCount := 0
 		err = h.db.QueryRow(`Select COUNT(*) as count FROM todos;`).Scan(&rowCount)
 
@@ -41,6 +43,7 @@ func (h *Handler) UpdateTodoById (ctx *gin.Context) {
 			return 
 		}
 
+		// Validate request body
 		if err := ctx.BindJSON(&reqBody); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": "JSON Payload is not valid",
@@ -65,6 +68,7 @@ func (h *Handler) UpdateTodoById (ctx *gin.Context) {
 			return
 		}
 
+		// Get current todo
 		sqlStatement := `SELECT * FROM todos WHERE id = $1`
 		err = h.db.QueryRow(sqlStatement, intId).Scan(&currentTodo.Id, &currentTodo.IsCompleted, &currentTodo.Todo)
 
@@ -80,6 +84,7 @@ func (h *Handler) UpdateTodoById (ctx *gin.Context) {
 			reqBody.Todo = currentTodo.Todo
 		}
 
+		// Update todo
 		sqlStatement = `
 		UPDATE todos
 		SET is_completed = $2, models.Todo = $3
@@ -92,6 +97,7 @@ func (h *Handler) UpdateTodoById (ctx *gin.Context) {
 			panic(err)
 		}
 
+		// Get todos
 		todos := utils.GetTodosDB(h.db)
 
 		ctx.JSON(http.StatusOK, gin.H{

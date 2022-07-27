@@ -12,6 +12,7 @@ import (
 func (h *Handler) GetTodoById(ctx *gin.Context) {
 	var todo models.Todo
 
+	// Get id param and convert it to int
 	id := ctx.Param("id") 
 	intId, err := strconv.Atoi(id)
 
@@ -21,6 +22,7 @@ func (h *Handler) GetTodoById(ctx *gin.Context) {
 		panic(err) 
 	}
 
+	// Validate id param
 	err = h.db.QueryRow(`Select COUNT(*) as count FROM todos;`).Scan(&rowCount)
 
 	if (err != nil) {
